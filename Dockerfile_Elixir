@@ -1,0 +1,15 @@
+FROM elixir:1.10-alpine
+
+RUN apk update && \
+  apk add curl && \
+  apk add bash && \
+  apk add inotify-tools && \
+  apk add --update nodejs npm
+
+RUN npm install npm@latest -g
+
+RUN mix local.hex --force && \
+  mix archive.install hex phx_new 1.5.1 --force && \
+  mix local.rebar --force
+
+RUN mkdir app

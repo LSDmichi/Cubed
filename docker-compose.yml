@@ -1,0 +1,42 @@
+version: '3'
+services:
+  app-server:
+    build:
+      context: .
+      dockerfile: Dockerfile_Elixir
+    restart: always
+    container_name: app-server
+    environment:
+      - MIX_ENV=dev
+      - PORT=4000
+    depends_on:
+      - mysql-server
+      - redis-server
+    ports:
+      - 4000:4000
+    volumes:
+        - .:/app
+    working_dir: /app
+    command: ["mix", "phx.server"]
+    tty: true
+    expose: 
+      - 4000
+
+  mysql-server:
+    image: mysql:8
+    container_name: mysql-server
+    environment:
+      MYSQL_ROOT_PASSWORD: hogehoge
+      MYSQL_PORT: 3306
+    volumes: 
+      - ./db/mysql_data:/var/lib/mysql
+    ports:
+      - 3306:3306
+
+  redis-server:
+    image: redis:6
+    container_name: redis-server
+    volumes: 
+      - ./db/redis_data:/data
+    ports:
+      - 6379:6379
