@@ -1,14 +1,14 @@
 defmodule Plug.Cowboy.MixProject do
   use Mix.Project
 
-  @version "2.2.1"
+  @version "2.3.0"
   @description "A Plug adapter for Cowboy"
 
   def project do
     [
       app: :plug_cowboy,
       version: @version,
-      elixir: "~> 1.5",
+      elixir: "~> 1.7",
       deps: deps(),
       package: package(),
       description: @description,

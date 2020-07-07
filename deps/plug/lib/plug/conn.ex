@@ -152,6 +152,7 @@ defmodule Plug.Conn do
           before_send: before_send,
           body_params: params | Unfetched.t(),
           cookies: cookies | Unfetched.t(),
+          halted: halted,
           host: host,
           method: method,
           owner: owner,
@@ -186,8 +187,8 @@ defmodule Plug.Conn do
             method: "GET",
             owner: nil,
             params: %Unfetched{aspect: :params},
-            path_params: %{},
             path_info: [],
+            path_params: %{},
             port: 0,
             private: %{},
             query_params: %Unfetched{aspect: :query_params},
@@ -984,7 +985,13 @@ defmodule Plug.Conn do
         plug_status: 414
     end
 
-    query_params = Plug.Conn.Query.decode(query_string, %{}, Plug.Conn.InvalidQueryError)
+    query_params =
+      Plug.Conn.Query.decode(
+        query_string,
+        %{},
+        Plug.Conn.InvalidQueryError,
+        Keyword.get(opts, :validate_utf8, true)
+      )
 
     case params do
       %Unfetched{} -> %{conn | query_params: query_params, params: query_params}
@@ -1387,12 +1394,14 @@ defmodule Plug.Conn do
   @doc """
   Puts a response cookie in the connection.
 
-  The cookie value must be a binary and that the cookie value is not
-  automatically escaped, unless signing or encryption is enabled.
-  Therefore if you want to store values with non-alphanumeric characters,
-  you must either sign or encrypt the cookie (see the upcoming section)
-  or consider explicitly escaping the cookie value by using a function
-  such as `Base.encode64(value, padding: false)` when writing and
+  If the `:signed` or `:encrypted` flag are given, then the cookie
+  value can be any term.
+
+  If the cookie not signed nor encrypted, then the value must be a binary.
+  Note the is not automatically escaped.  Therefore if you want to store
+  values with non-alphanumeric characters, you must either sign or encrypt
+  the cookie or consider explicitly escaping the cookie value by using a
+  function such as `Base.encode64(value, padding: false)` when writing and
   `Base.decode64(encoded, padding: false)` when reading the cookie.
   It is important for padding to be disabled since `=` is not a valid
   character in cookie values.
@@ -1402,7 +1411,7 @@ defmodule Plug.Conn do
   This function allows you to automatically sign and encrypt cookies.
   When signing or encryption is enabled, then any Elixir value can be
   stored in the cookie (except anonymous functions for security reasons).
-  Once a value is signed or encrypted, you must also call `fetch_cookie/2`
+  Once a value is signed or encrypted, you must also call `fetch_cookies/2`
   with the name of the cookies that are either signed or encrypted.
 
   To sign, you would do:
@@ -1411,7 +1420,7 @@ defmodule Plug.Conn do
 
   and then:
 
-      fetch_cookie(conn, signed: ~w(my-cookie))
+      fetch_cookies(conn, signed: ~w(my-cookie))
 
   To encrypt, you would do:
 
@@ -1419,7 +1428,7 @@ defmodule Plug.Conn do
 
   and then:
 
-      fetch_cookie(conn, encrypted: ~w(my-cookie))
+      fetch_cookies(conn, encrypted: ~w(my-cookie))
 
   By default a signed or encrypted cookie is only valid for a day, unless
   a `:max_age` is specified.
@@ -1443,9 +1452,11 @@ defmodule Plug.Conn do
       non-standard cookie attributes.
     * `:signed` - when true, signs the cookie
     * `:encrypted` - when true, encrypts the cookie
+    * `:same_site` - set the cookie SameSite attribute to a string value.
+      If no string value is set, the attribute is omitted.
 
   """
-  @spec put_resp_cookie(t, binary, binary, Keyword.t()) :: t
+  @spec put_resp_cookie(t, binary, any(), Keyword.t()) :: t
   def put_resp_cookie(%Conn{} = conn, key, value, opts \\ [])
       when is_binary(key) and is_list(opts) do
     %{resp_cookies: resp_cookies, scheme: scheme} = conn

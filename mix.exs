@@ -36,7 +36,7 @@ defmodule App.MixProject do
       {:phoenix, "~> 1.5.1"},
       {:phoenix_ecto, "~> 4.1"},
       {:ecto_sql, "~> 3.4"},
-      {:postgrex, ">= 0.0.0"},
+      {:myxql, ">= 0.0.0"},
       {:phoenix_html, "~> 2.11"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_dashboard, "~> 0.2.0"},
@@ -44,10 +44,11 @@ defmodule App.MixProject do
       {:telemetry_poller, "~> 0.4"},
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.0"},
-      {:plug_cowboy, "~> 2.0"},
+      {:plug_cowboy, "~> 2.3"},
       {:mix_test_watch, "~> 1.0", only: :dev},
       {:credo, "~> 1.4", only: [:dev, :test]},
-      {:poison, "~> 4.0"}
+      {:poison, "~> 4.0"},
+      {:email_checker, "~> 0.1.3"}
     ]
   end
 

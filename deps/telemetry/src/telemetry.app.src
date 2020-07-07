@@ -1,6 +1,6 @@
 {application,telemetry,
              [{description,"Dynamic dispatching library for metrics and instrumentations"},
-              {vsn,"0.4.1"},
+              {vsn,"0.4.2"},
               {registered,[]},
               {mod,{telemetry_app,[]}},
               {applications,[kernel,stdlib]},
