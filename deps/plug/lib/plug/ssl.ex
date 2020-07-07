@@ -13,38 +13,40 @@ defmodule Plug.SSL do
   Besides being a Plug, this module also provides conveniences for configuring
   SSL. See `configure/1`.
 
-  ## x-forwarded-proto
+  ## x-forwarded-*
 
-  If your Plug application is behind a proxy that handles HTTPS, you will
-  need to tell Plug to parse the proper protocol from the `x-forwarded-proto`
+  If your Plug application is behind a proxy that handles HTTPS, you may
+  need to tell Plug to parse the proper protocol from the `x-forwarded-*`
   header. This can be done using the `:rewrite_on` option:
 
-      plug Plug.SSL, rewrite_on: [:x_forwarded_proto]
+      plug Plug.SSL, rewrite_on: [:x_forwarded_proto, :x_forwarded_host, :x_forwarded_port]
 
-  The command above will effectively change the value of `conn.scheme` to the
-  one sent in `x-forwarded-proto`. If the incoming request comes into a
-  standard port (80 for HTTP or 443 for HTTPS), the command above will also
-  change the value of `conn.port` to match the new scheme.
+  The supported values are:
 
-  Since rewriting the scheme based on `x-forwarded-proto` can open up
+    * `:x_forwarded_host` - to override the host based on on the "x-forwarded-host" header
+    * `:x_forwarded_port` - to override the port based on on the "x-forwarded-port" header
+    * `:x_forwarded_proto` - to override the protocol based on on the "x-forwarded-proto" header
+
+  Since rewriting the scheme based on `x-forwarded-*` headers can open up
   security vulnerabilities, only provide the option above if:
 
     * your app is behind a proxy
-    * your proxy strips `x-forwarded-proto` headers from all incoming requests
-    * your proxy sets the `x-forwarded-proto` and sends it to Plug
+    * your proxy strips the given `x-forwarded-*` headers from all incoming requests
+    * your proxy sets the `x-forwarded-*` headers and sends it to Plug
 
   ## Plug Options
 
-    * `:rewrite_on` - rewrites the scheme to https based on the given headers
+    * `:rewrite_on` - rewrites the given connection information based on the given headers
     * `:hsts` - a boolean on enabling HSTS or not, defaults to `true`
     * `:expires` - seconds to expires for HSTS, defaults to `31_536_000` (1 year)
     * `:preload` - a boolean to request inclusion on the HSTS preload list
-       (for full set of required flags, see: [Chromium HSTS submission site](https://hstspreload.org)),
+      (for full set of required flags, see: [Chromium HSTS submission site](https://hstspreload.org)),
       defaults to `false`
     * `:subdomains` - a boolean on including subdomains or not in HSTS,
       defaults to `false`
     * `:exclude` - exclude the given hosts from redirecting to the `https`
-      scheme. Defaults to `["localhost"]`
+      scheme. Defaults to `["localhost"]`. It may be set to a list of binaries
+      or a tuple [`{module, function, args}`](#module-excluded-hosts-tuple).
     * `:host` - a new host to redirect to if the request's scheme is `http`,
       defaults to `conn.host`. It may be set to a binary or a tuple
       `{module, function, args}` that will be invoked on demand
@@ -57,6 +59,25 @@ defmodule Plug.SSL do
   HSTS expects the port to be 443 for SSL. If you are not using HSTS and
   want to redirect to HTTPS on another port, you can sneak it alongside
   the host, for example: `host: "example.com:443"`.
+
+  ## Excluded hosts tuple
+
+  Tuple `{module, function, args}` can be passed to be invoked each time
+  the plug is checking whether to redirect host. Provided function needs
+  to receive at least one argument (`host`).
+
+  For example, you may define it as:
+
+      plug Plug.SSL,
+        rewrite_on: [:x_forwarded_proto],
+        exclude: {__MODULE__, :excluded_host?, []}
+
+  where:
+
+      def excluded_host?(host) do
+        # Custom logic
+      end
+
   """
   @behaviour Plug
 
@@ -295,52 +316,80 @@ defmodule Plug.SSL do
   @impl true
   def init(opts) do
     host = Keyword.get(opts, :host)
-    rewrite_on = Keyword.get(opts, :rewrite_on, [])
+    rewrite_on = List.wrap(Keyword.get(opts, :rewrite_on))
     log = Keyword.get(opts, :log, :info)
     exclude = Keyword.get(opts, :exclude, ["localhost"])
     {hsts_header(opts), exclude, host, rewrite_on, log}
   end
 
   @impl true
-  def call(conn, {hsts, exclude, host, rewrites, log_level}) do
-    conn = rewrite_on(conn, rewrites)
+  def call(conn, {hsts, exclude, host, rewrite_on, log_level}) do
+    conn = rewrite_on(conn, rewrite_on)
 
     cond do
-      :lists.member(conn.host, exclude) -> conn
+      excluded?(conn.host, exclude) -> conn
       conn.scheme == :https -> put_hsts_header(conn, hsts)
       true -> redirect_to_https(conn, host, log_level)
     end
   end
 
-  defp rewrite_on(conn, rewrites) do
-    Enum.reduce(rewrites, conn, fn
-      :x_forwarded_proto, acc ->
-        scheme = get_req_header(acc, "x-forwarded-proto")
-        set_scheme(acc, scheme)
+  defp excluded?(host, list) when is_list(list), do: :lists.member(host, list)
+  defp excluded?(host, {mod, fun, args}), do: apply(mod, fun, [host | args])
 
-      other, _acc ->
-        raise "unknown rewrite: #{inspect(other)}"
-    end)
-  end
-
-  defp set_scheme(%{scheme: :http, port: 80} = conn, ["https"]) do
-    %{conn | scheme: :https, port: 443}
-  end
-
-  defp set_scheme(conn, ["https"]) do
-    %{conn | scheme: :https}
-  end
-
-  defp set_scheme(%{scheme: :https, port: 443} = conn, ["http"]) do
-    %{conn | scheme: :http, port: 80}
-  end
-
-  defp set_scheme(conn, ["http"]) do
-    %{conn | scheme: :http}
-  end
-
-  defp set_scheme(conn, _scheme) do
+  defp rewrite_on(conn, [:x_forwarded_proto | rewrite_on]) do
     conn
+    |> put_scheme(get_req_header(conn, "x-forwarded-proto"))
+    |> rewrite_on(rewrite_on)
+  end
+
+  defp rewrite_on(conn, [:x_forwarded_port | rewrite_on]) do
+    conn
+    |> put_port(get_req_header(conn, "x-forwarded-port"))
+    |> rewrite_on(rewrite_on)
+  end
+
+  defp rewrite_on(conn, [:x_forwarded_host | rewrite_on]) do
+    conn
+    |> put_host(get_req_header(conn, "x-forwarded-host"))
+    |> rewrite_on(rewrite_on)
+  end
+
+  defp rewrite_on(_conn, [other | _rewrite_on]) do
+    raise "unknown rewrite: #{inspect(other)}"
+  end
+
+  defp rewrite_on(conn, []) do
+    conn
+  end
+
+  defp put_scheme(%{scheme: :http, port: 80} = conn, ["https"]),
+    do: %{conn | scheme: :https, port: 443}
+
+  defp put_scheme(conn, ["https"]),
+    do: %{conn | scheme: :https}
+
+  defp put_scheme(%{scheme: :https, port: 443} = conn, ["http"]),
+    do: %{conn | scheme: :http, port: 80}
+
+  defp put_scheme(conn, ["http"]),
+    do: %{conn | scheme: :http}
+
+  defp put_scheme(conn, _scheme),
+    do: conn
+
+  defp put_host(conn, [proper_host]),
+    do: %{conn | host: proper_host}
+
+  defp put_host(conn, _),
+    do: conn
+
+  defp put_port(conn, headers) do
+    with [header] <- headers,
+         {port, ""} <- Integer.parse(header) do
+      %{conn | port: port}
+    else
+      _ -> conn
+    end
   end
 
   # http://tools.ietf.org/html/draft-hodges-strict-transport-sec-02

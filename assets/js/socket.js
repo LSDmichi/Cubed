@@ -41,21 +41,37 @@ let socket = new Socket("/socket", {params: {token: window.userToken}})
 // You will need to verify the user token in the "connect/3" function
 // in "lib/web/channels/user_socket.ex":
 //
-//     def connect(%{"token" => token}, socket, _connect_info) do
-//       # max_age: 1209600 is equivalent to two weeks in seconds
-//       case Phoenix.Token.verify(socket, "user socket", token, max_age: 1209600) do
-//         {:ok, user_id} ->
-//           {:ok, assign(socket, :user, user_id)}
-//         {:error, reason} ->
-//           :error
-//       end
-//     end
+// def connect(%{"token" => token}, socket, _connect_info) do
+//   # max_age: 1209600 is equivalent to two weeks in seconds
+//   case Phoenix.Token.verify(socket, "user socket", token, max_age: 1209600) do
+//     {:ok, user_id} ->
+//       {:ok, assign(socket, :user, user_id)}
+//     {:error, reason} ->
+//       :error
+//   end
+// end
 //
 // Finally, connect to the socket:
 socket.connect()
 
 // Now that you are connected, you can join channels with a topic:
-let channel = socket.channel("topic:subtopic", {})
+let channel = socket.channel("room:lobby", {})
+let chatInput = document.querySelector("#chat-input"); // #chat-inputの要素を取り出す
+let messagesContainer = document.querySelector("#messages"); // #messagesの要素を取り出す
+
+chatInput.addEventListener("keypress", event => {
+  if(event.keyCode === 13){ // エンターコードが押されたら
+    channel.push("new_msg", {body: chatInput.value}); // 接続しているトピックへ文字列を送信
+    chatInput.value = ""; // 入力欄を空にする
+  }
+});
+
+channel.on("new_msg", payload => { // "new_msg"というイベントが発生したら
+  let messageItem = document.createElement("li") // リスト要素を作成
+  messageItem.innerText = `[${Date()}] ${payload.body}` // テキストデータを作成。[日付] 本文
+  messagesContainer.appendChild(messageItem) // messageItemに要素を追加
+})
+
 channel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })

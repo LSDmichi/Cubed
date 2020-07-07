@@ -26,12 +26,14 @@ services:
     image: mysql:8
     container_name: mysql-server
     environment:
+      MYSQL_USER: root
       MYSQL_ROOT_PASSWORD: hogehoge
+      MYSQL_DATABASE: cubed
       MYSQL_PORT: 3306
     volumes: 
       - ./db/mysql_data:/var/lib/mysql
     ports:
-      - 3306:3306
+      - 4306:3306
 
   redis-server:
     image: redis:6
@@ -39,4 +41,4 @@ services:
     volumes: 
       - ./db/redis_data:/data
     ports:
-      - 6379:6379
+      - 6479:6379

@@ -15,10 +15,6 @@
 -module(cowboy_stream_h).
 -behavior(cowboy_stream).
 
--ifdef(OTP_RELEASE).
--compile({nowarn_deprecated_function, [{erlang, get_stacktrace, 0}]}).
--endif.
-
 -export([init/3]).
 -export([data/4]).
 -export([info/3]).
@@ -96,6 +92,7 @@ data(StreamID, IsFin, Data, State=#state{read_body_pid=Pid, read_body_ref=Ref,
 	send_request_body(Pid, Ref, IsFin, BodyLen, Data),
 	do_data(StreamID, IsFin, Data, [{flow, byte_size(Data)}], State#state{
 		read_body_ref=undefined,
+		%% @todo This is wrong, it's missing byte_size(Data).
 		body_length=BodyLen
 	});
 %% Stream is waiting for data but we didn't receive enough to send yet.
@@ -285,33 +282,16 @@ send_request_body(Pid, Ref, fin, BodyLen, Data) ->
 
 %% Request process.
 
-%% We catch all exceptions in order to add the stacktrace to
-%% the exit reason as it is not propagated by proc_lib otherwise
-%% and therefore not present in the 'EXIT' message. We want
-%% the stacktrace in order to simplify debugging of errors.
-%%
-%% This + the behavior in proc_lib means that we will get a
-%% {Reason, Stacktrace} tuple for every exceptions, instead of
-%% just for errors and throws.
-%%
-%% @todo Better spec.
+%% We add the stacktrace to exit exceptions here in order
+%% to simplify the debugging of errors. The proc_lib library
+%% already adds the stacktrace to other types of exceptions.
 -spec request_process(cowboy_req:req(), cowboy_middleware:env(), [module()]) -> ok.
 request_process(Req, Env, Middlewares) ->
-	OTP = erlang:system_info(otp_release),
 	try
 		execute(Req, Env, Middlewares)
 	catch
-		exit:Reason ->
-			Stacktrace = erlang:get_stacktrace(),
-			erlang:raise(exit, {Reason, Stacktrace}, Stacktrace);
-		%% OTP 19 does not propagate any exception stacktraces,
-		%% we therefore add it for every class of exception.
-		_:Reason when OTP =:= "19" ->
-			Stacktrace = erlang:get_stacktrace(),
-			erlang:raise(exit, {Reason, Stacktrace}, Stacktrace);
-		%% @todo I don't think this clause is necessary.
-		Class:Reason ->
-			erlang:raise(Class, Reason, erlang:get_stacktrace())
+		exit:Reason:Stacktrace ->
+			erlang:raise(exit, {Reason, Stacktrace}, Stacktrace)
 	end.
 
 execute(_, _, []) ->

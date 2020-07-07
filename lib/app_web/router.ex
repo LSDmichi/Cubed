@@ -17,6 +17,20 @@ defmodule AppWeb.Router do
     pipe_through :api
 
     get "/check", ApiController, :check
+    get "/check/version", ApiController, :version
+
+    post "/setting/get", SettingController, :get
+    post "/setting/update", SettingController, :update
+    
+    post "/user/paymentrecord", UserController, :payment_record
+    post "/user/owned/character/list", UserController, :owned_character_list
+    post "/user/data", UserController, :get_data
+    post "/user/create", UserController, :create
+    post "/user/signin", UserController, :signin
+
+
+    get "/character/list", CharacterController, :character_list
+    post "/character/buy", CharacterController, :buy
   end
 
   scope "/", AppWeb do

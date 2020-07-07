@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.10.3 (2020-06-10)
+
+### Enhancements
+
+  * [Plug.SSL] Allow host exclusion to be checked dynamically
+
+### Bug fixes
+
+  * [Plug.Router] Fix router telemetry event to follow Telemetry specification. This corrects the telemetry event added on v1.10.1.
+
+## v1.10.2 (2020-06-06)
+
+### Bug fixes
+
+  * [Plug] Make `:telemetry` a required dependency
+  * [Plug.Test] Populate `:query_string` when params are passed in
+
+### Enhancements
+
+  * [Plug] Add `Plug.run/3` for running multiple Plugs at runtime
+  * [Plug] Add `Plug.forward/4` for forwarding between Plugs
+
+## v1.10.1 (2020-05-15)
+
+### Enhancements
+
+  * [Plug.Conn] Add option to disable uft-8 validation on query strings
+  * [Plug.Conn] Support `:same_site` option when writing cookies
+  * [Plug.Router] Add router dispatch telemetry events
+  * [Plug.SSL] Support `:x_forwarded_host` and `:x_forwarded_port` on `:rewrite_on`
+
+### Bug fixes
+
+  * [Plug.Test] Ensure parameters are converted to string keys
+
 ## v1.10.0 (2020-03-24)
 
 ### Enhancements
@@ -30,6 +65,9 @@
   * [Plug.Parsers] Add option to skip utf8 validation
   * [Plug.Parsers] Make multipart support MFA for `:length` limit
   * [Plug.Static] Accept MFA for `:header` option
+  
+### Notes
+  * When implementing the `Plug.Exception` protocol, if the new `actions` function is not implemented, a warning will printed during compilation.
 
 ## v1.8.3 (2019-07-28)
 
