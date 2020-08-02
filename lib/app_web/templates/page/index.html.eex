@@ -4,6 +4,15 @@
 </section>
 
 <section class="row">
-  <div id="messages"></div>
+  <div>name</div>
+  <input id="name-input" type="text"></input> 
+  <div>message</div>
   <input id="chat-input" type="text"></input> 
+  <div>wisper_to</div>
+  <input id="id-input" type="text"></input> 
 </section>
+
+<section class message>
+  <div id="messages"></div>
+</section>
+

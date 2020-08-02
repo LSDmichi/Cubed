@@ -7,9 +7,9 @@
 // Pass the token on params as below. Or remove it
 // from the params if you are not using authentication.
 import {Socket} from "phoenix"
-
-let socket = new Socket("/socket", {params: {token: window.userToken}})
-
+let secretValue = Math.random().toString(36).slice(-12);
+let userAgent = window.navigator.userAgent;
+let socket = new Socket("/socket", {params: {token: window.userToken, secret_value: secretValue, userAgent: userAgent} })
 // When you connect, you'll often need to authenticate the client.
 // For example, imagine you have an authentication plug, `MyAuth`,
 // which authenticates the session and assigns a `:current_user`.
@@ -55,25 +55,50 @@ let socket = new Socket("/socket", {params: {token: window.userToken}})
 socket.connect()
 
 // Now that you are connected, you can join channels with a topic:
-let channel = socket.channel("room:lobby", {})
+let lobby_channel = socket.channel("room:lobby", {});
+let own_channel = socket.channel("room:" + secretValue, {});
 let chatInput = document.querySelector("#chat-input"); // #chat-inputの要素を取り出す
 let messagesContainer = document.querySelector("#messages"); // #messagesの要素を取り出す
+let nameInput = document.querySelector("#name-input"); 
+let idInput = document.querySelector("#id-input"); 
 
 chatInput.addEventListener("keypress", event => {
-  if(event.keyCode === 13){ // エンターコードが押されたら
-    channel.push("new_msg", {body: chatInput.value}); // 接続しているトピックへ文字列を送信
+  // console.log(idInput);
+  // console.log(idInput.value);
+  // console.log(idInput.value === "");
+  if(event.keyCode === 13 && idInput.value !== ""){ // エンターコードが押されたらかつidInputが空ではない場合
+    console.log("private_msg");
+    lobby_channel.push("private_msg", {body: chatInput.value, name: nameInput.value, to_id: idInput.value}); // 接続しているトピックへ文字列を送信
+    chatInput.value = ""; // 入力欄を空にする
+  }
+  else if(event.keyCode === 13){ // エンターコードが押されたら
+    console.log("new_msg");
+    lobby_channel.push("new_msg", {body: chatInput.value, name: nameInput.value}); // 接続しているトピックへ文字列を送信
     chatInput.value = ""; // 入力欄を空にする
   }
 });
 
-channel.on("new_msg", payload => { // "new_msg"というイベントが発生したら
+own_channel.on("private_msg", payload => { // "private_msg"というイベントが発生したら
+  console.log("private_msg");
   let messageItem = document.createElement("li") // リスト要素を作成
-  messageItem.innerText = `[${Date()}] ${payload.body}` // テキストデータを作成。[日付] 本文
+  messageItem.innerText = `[${payload.name} (wispered)] ${payload.body}`　 // テキストデータを作成。[日付] 本文
   messagesContainer.appendChild(messageItem) // messageItemに要素を追加
 })
 
-channel.join()
+lobby_channel.on("new_msg", payload => { // "new_msg"というイベントが発生したら
+  console.log("new_msg");
+  let messageItem = document.createElement("li") // リスト要素を作成
+  messageItem.innerText = `[${payload.name}] ${payload.body}` // テキストデータを作成。[日付] 本文
+  messagesContainer.appendChild(messageItem) // messageItemに要素を追加
+})
+
+
+lobby_channel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
+  .receive("error", resp => { console.log("Unable to join", resp) })
+
+own_channel.join()
+  .receive("ok", resp => { console.log("Joined private successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
 
 export default socket

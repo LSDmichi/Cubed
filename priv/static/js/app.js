@@ -1297,9 +1297,13 @@ __webpack_require__.r(__webpack_exports__);
 // Pass the token on params as below. Or remove it
 // from the params if you are not using authentication.
 
+var secretValue = Math.random().toString(36).slice(-12);
+var userAgent = window.navigator.userAgent;
 var socket = new phoenix__WEBPACK_IMPORTED_MODULE_0__["Socket"]("/socket", {
   params: {
-    token: window.userToken
+    token: window.userToken,
+    secret_value: secretValue,
+    userAgent: userAgent
   }
 }); // When you connect, you'll often need to authenticate the client.
 // For example, imagine you have an authentication plug, `MyAuth`,
@@ -1346,31 +1350,64 @@ var socket = new phoenix__WEBPACK_IMPORTED_MODULE_0__["Socket"]("/socket", {
 
 socket.connect(); // Now that you are connected, you can join channels with a topic:
 
-var channel = socket.channel("room:lobby", {});
+var lobby_channel = socket.channel("room:lobby", {});
+var own_channel = socket.channel("room:" + secretValue, {});
 var chatInput = document.querySelector("#chat-input"); // #chat-inputの要素を取り出す
 
 var messagesContainer = document.querySelector("#messages"); // #messagesの要素を取り出す
 
+var nameInput = document.querySelector("#name-input");
+var idInput = document.querySelector("#id-input");
 chatInput.addEventListener("keypress", function (event) {
-  if (event.keyCode === 13) {
+  // console.log(idInput);
+  // console.log(idInput.value);
+  // console.log(idInput.value === "");
+  if (event.keyCode === 13 && idInput.value !== "") {
+    // エンターコードが押されたらかつidInputが空ではない場合
+    console.log("private_msg");
+    lobby_channel.push("private_msg", {
+      body: chatInput.value,
+      name: nameInput.value,
+      to_id: idInput.value
+    }); // 接続しているトピックへ文字列を送信
+
+    chatInput.value = ""; // 入力欄を空にする
+  } else if (event.keyCode === 13) {
     // エンターコードが押されたら
-    channel.push("new_msg", {
-      body: chatInput.value
+    console.log("new_msg");
+    lobby_channel.push("new_msg", {
+      body: chatInput.value,
+      name: nameInput.value
     }); // 接続しているトピックへ文字列を送信
 
     chatInput.value = ""; // 入力欄を空にする
   }
 });
-channel.on("new_msg", function (payload) {
-  // "new_msg"というイベントが発生したら
+own_channel.on("private_msg", function (payload) {
+  // "private_msg"というイベントが発生したら
+  console.log("private_msg");
   var messageItem = document.createElement("li"); // リスト要素を作成
 
-  messageItem.innerText = "[".concat(Date(), "] ").concat(payload.body); // テキストデータを作成。[日付] 本文
+  messageItem.innerText = "[".concat(payload.name, " (wispered)] ").concat(payload.body); // テキストデータを作成。[日付] 本文
 
   messagesContainer.appendChild(messageItem); // messageItemに要素を追加
 });
-channel.join().receive("ok", function (resp) {
+lobby_channel.on("new_msg", function (payload) {
+  // "new_msg"というイベントが発生したら
+  console.log("new_msg");
+  var messageItem = document.createElement("li"); // リスト要素を作成
+
+  messageItem.innerText = "[".concat(payload.name, "] ").concat(payload.body); // テキストデータを作成。[日付] 本文
+
+  messagesContainer.appendChild(messageItem); // messageItemに要素を追加
+});
+lobby_channel.join().receive("ok", function (resp) {
   console.log("Joined successfully", resp);
+}).receive("error", function (resp) {
+  console.log("Unable to join", resp);
+});
+own_channel.join().receive("ok", function (resp) {
+  console.log("Joined private successfully", resp);
 }).receive("error", function (resp) {
   console.log("Unable to join", resp);
 });

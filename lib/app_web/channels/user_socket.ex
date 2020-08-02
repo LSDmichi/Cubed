@@ -3,6 +3,7 @@ defmodule AppWeb.UserSocket do
 
   ## Channels
   channel "room:*", AppWeb.RoomChannel
+  channel "game:*", Appweb.GameChannel
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -18,7 +19,7 @@ defmodule AppWeb.UserSocket do
 
   @impl true
   def connect(params, socket, connect_info) do
-    {:ok, socket}
+    {:ok, assign(socket, :user_id, params["secret_value"])}
   end
 
   # @impl true
@@ -46,5 +47,7 @@ defmodule AppWeb.UserSocket do
   #
   # Returning `nil` makes this socket anonymous.
   @impl true
-  def id(_socket), do: nil
+  def id(socket) do 
+    "user_socket:#{socket.assigns.user_id}"
+  end
 end
