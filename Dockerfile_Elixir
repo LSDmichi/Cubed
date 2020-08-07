@@ -12,5 +12,6 @@ RUN npm rebuild node-sass
 RUN mix local.hex --force 
 RUN mix archive.install hex phx_new 1.5.1 --force
 RUN mix local.rebar --force
+RUN mix deps.get
 
 RUN mkdir app
