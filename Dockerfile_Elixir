@@ -9,6 +9,7 @@ RUN apk update && \
 RUN npm install npm@6.14.0 -g
 RUN npm rebuild node-sass
 
+RUN mix help
 RUN mix local.hex --force && \
   mix archive.install hex phx_new 1.5.1 --force && \
   mix local.rebar --force && \
