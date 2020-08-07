@@ -17,7 +17,10 @@ services:
     volumes:
         - .:/app
     working_dir: /app
+    command: ["mix", "deps.clean --all"]
+    command: ["echo", "before_deps.get_watch_it"]
     command: ["mix", "deps.get"]
+    command: ["echo", "after_deps.get_watch_it"]
     command: ["mix", "phx.server"]
     tty: true
     expose: 
