@@ -13,7 +13,7 @@ tar zxvf otp_src_22.3.tar.gz
 cd otp_src_22.3
 ./configure
 
-make
+sudo make
 sudo make install
 
 echo "erlangバージョン確認"

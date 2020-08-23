@@ -27,7 +27,7 @@ config :logger, :console,
 config :mix_test_watch,
   tasks: [
     "test",
-    "credo",
+    # "credo",
   ]
 
 # Use Jason for JSON parsing in Phoenix
